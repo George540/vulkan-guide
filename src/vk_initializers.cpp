@@ -4,7 +4,7 @@
 VkCommandPoolCreateInfo vkinit::command_pool_create_info(uint32_t queueFamilyIndex,
     VkCommandPoolCreateFlags flags /*= 0*/)
 {
-    VkCommandPoolCreateInfo info = {};
+    VkCommandPoolCreateInfo info = {}; // Make sure we don't leave uninitialized data
     info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     info.pNext = nullptr;
     info.queueFamilyIndex = queueFamilyIndex;
