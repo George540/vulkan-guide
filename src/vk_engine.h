@@ -14,9 +14,12 @@ struct FrameData {
 
 	VkCommandPool _commandPool;
 	VkCommandBuffer _mainCommandBuffer;
+	VkSemaphore _swapchainSemaphore, _renderSemaphore;
+	VkFence _renderFence;
 };
 
-constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int FRAME_OVERLAP = 2; // for double-buffering
+constexpr unsigned int WAIT_FENCE_TIMEOUT = 1000000000; // for double-buffering
 
 class VulkanEngine {
 
