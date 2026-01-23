@@ -5,7 +5,7 @@
 
 // --- other includes ---
 #include <vk_types.h>
-#include <vk_initializers.h>
+#include "vk_descriptors.h"
 
 //bootstrap library
 #include "VkBootstrap.h"
@@ -44,6 +44,7 @@ constexpr unsigned int WAIT_FENCE_TIMEOUT = 1000000000; // for double-buffering
 
 class VulkanEngine
 {
+	// Vulkan Initializers
 	VkInstance _instance;// Vulkan library handle
 	VkDebugUtilsMessengerEXT _debug_messenger;// Vulkan debug output handle
 	VkPhysicalDevice _chosenGPU;// GPU chosen as the default device
@@ -52,18 +53,32 @@ class VulkanEngine
 	VkSwapchainKHR _swapchain;
 	VkFormat _swapchainImageFormat;
 
+	// Vulkan Images
 	std::vector<VkImage> _swapchainImages;
 	std::vector<VkImageView> _swapchainImageViews;
 	VkExtent2D _swapchainExtent;
 
+	// Pipelines
+	VkPipeline _gradientPipeline;
+	VkPipelineLayout _gradientPipelineLayout;
+
+	// Frame data
 	FrameData _frames[FRAME_OVERLAP];
 
+	// VMA
 	VmaAllocator _allocator;
 
 	//draw resources
 	AllocatedImage _drawImage;
 	VkExtent2D _drawExtent;
 
+	// Descriptors
+	DescriptorAllocator globalDescriptorAllocator;
+
+	VkDescriptorSet _drawImageDescriptors;
+	VkDescriptorSetLayout _drawImageDescriptorLayout;
+
+	// Queues
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
 	DeletionQueue _mainDeletionQueue;
@@ -90,6 +105,12 @@ public:
 
 	//initializes everything in the engine
 	void init();
+
+	void init_descriptors();
+
+	void init_pipelines();
+
+	void init_background_pipelines();
 
 	//shuts down the engine
 	void cleanup();
