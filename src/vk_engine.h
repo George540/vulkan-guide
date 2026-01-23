@@ -68,6 +68,11 @@ class VulkanEngine
 	// VMA
 	VmaAllocator _allocator;
 
+	// Immediate submit structures
+	VkFence _immFence;
+	VkCommandBuffer _immCommandBuffer;
+	VkCommandPool _immCommandPool;
+
 	//draw resources
 	AllocatedImage _drawImage;
 	VkExtent2D _drawExtent;
@@ -102,6 +107,7 @@ public:
 
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 
+	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
 	//initializes everything in the engine
 	void init();
@@ -112,12 +118,15 @@ public:
 
 	void init_background_pipelines();
 
+	void init_imgui();
+
 	//shuts down the engine
 	void cleanup();
 
 	//draw loop
 	void draw();
 	void draw_background(VkCommandBuffer cmd);
+	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	//run main loop
 	void run();
