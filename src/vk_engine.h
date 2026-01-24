@@ -15,11 +15,13 @@ struct DeletionQueue
 {
 	std::deque<std::function<void()>> deletors;
 
-	void push_function(std::function<void()>&& function) {
+	void push_function(std::function<void()>&& function)
+	{
 		deletors.push_back(function);
 	}
 
-	void flush() {
+	void flush()
+	{
 		// Reverse iterate the deletion queue to execute all the functions
 		for (auto it = deletors.rbegin(); it != deletors.rend(); it++)
 		{
@@ -30,13 +32,31 @@ struct DeletionQueue
 	}
 };
 
-struct FrameData {
-
+struct FrameData
+{
 	VkCommandPool _commandPool;
 	VkCommandBuffer _mainCommandBuffer;
 	VkSemaphore _swapchainSemaphore, _renderSemaphore;
 	VkFence _renderFence;
 	DeletionQueue _deletionQueue;
+};
+
+struct ComputePushConstants
+{
+	glm::vec4 data1;
+	glm::vec4 data2;
+	glm::vec4 data3;
+	glm::vec4 data4;
+};
+
+struct ComputeEffect
+{
+	const char* name;
+
+	VkPipeline pipeline;
+	VkPipelineLayout layout;
+
+	ComputePushConstants data;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2; // for double-buffering
@@ -76,6 +96,10 @@ class VulkanEngine
 	//draw resources
 	AllocatedImage _drawImage;
 	VkExtent2D _drawExtent;
+
+	// Push Constants
+	std::vector<ComputeEffect> backgroundEffects;
+	int currentBackgroundEffect{0};
 
 	// Descriptors
 	DescriptorAllocator globalDescriptorAllocator;
