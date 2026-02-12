@@ -88,6 +88,10 @@ class VulkanEngine
 	// VMA
 	VmaAllocator _allocator;
 
+	// Graphics Triangle Pipeline
+	VkPipelineLayout _trianglePipelineLayout;
+	VkPipeline _trianglePipeline;
+
 	// Immediate submit structures
 	VkFence _immFence;
 	VkCommandBuffer _immCommandBuffer;
@@ -142,6 +146,8 @@ public:
 
 	void init_background_pipelines();
 
+	void init_triangle_pipeline();
+
 	void init_imgui();
 
 	//shuts down the engine
@@ -150,6 +156,7 @@ public:
 	//draw loop
 	void draw();
 	void draw_background(VkCommandBuffer cmd);
+	void draw_geometry(VkCommandBuffer cmd);
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	//run main loop
