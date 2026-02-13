@@ -38,3 +38,34 @@ struct AllocatedImage
     VkExtent3D imageExtent;
     VkFormat imageFormat;
 };
+
+struct AllocatedBuffer
+{
+    VkBuffer buffer;
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
+};
+
+struct Vertex
+{
+    glm::vec3 position; //uv_x can go here as a vec4
+    float uv_x;
+    glm::vec3 normal; //uv_y can go here as a vec4
+    float uv_y;
+    glm::vec4 color;
+};
+
+// Holds resources needed for a mesh
+struct GPUMeshBuffers
+{
+    AllocatedBuffer indexBuffer;
+    AllocatedBuffer vertexBuffer;
+    VkDeviceAddress vertexBufferAddress;
+};
+
+// Push constants for mesh object draws
+struct GPUDrawPushConstants
+{
+    glm::mat4 worldMatrix;
+    VkDeviceAddress vertexBuffer;
+};
