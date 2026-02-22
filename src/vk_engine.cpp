@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <thread>
+#include <glm/gtx/transform.hpp>
 
 #include "vk_pipelines.h"
 
@@ -420,17 +421,17 @@ void VulkanEngine::init_imgui()
 
 void VulkanEngine::init_default_data()
 {
-    std::array<Vertex,4> rect_vertices;
+    std::array<Vertex, 4> rect_vertices;
 
     rect_vertices[0].position = {0.5,-0.5, 0};
     rect_vertices[1].position = {0.5,0.5, 0};
     rect_vertices[2].position = {-0.5,-0.5, 0};
     rect_vertices[3].position = {-0.5,0.5, 0};
 
-    rect_vertices[0].color = {0,0, 0,1};
-    rect_vertices[1].color = { 0.5,0.5,0.5 ,1};
-    rect_vertices[2].color = { 1,0, 0,1 };
-    rect_vertices[3].color = { 0,1, 0,1 };
+    rect_vertices[0].color = {0,0, 0,1}; // black
+    rect_vertices[1].color = { 1,1,1 ,1}; // white
+    rect_vertices[2].color = { 1,0, 0,1 }; // red
+    rect_vertices[3].color = { 0,1, 0,1 }; // green
 
     std::array<uint32_t, 6> rect_indices;
     rect_indices[0] = 0;
@@ -449,6 +450,8 @@ void VulkanEngine::init_default_data()
         destroy_buffer(rectangle.indexBuffer);
         destroy_buffer(rectangle.vertexBuffer);
     });
+
+    testMeshes = loadGltfMeshes(this,"..\\..\\assets\\basicmesh.glb").value();
 }
 
 void VulkanEngine::init_vulkan()
@@ -844,6 +847,27 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     // Same as vkCmdDraw, but use bound index buffer to draw meshes.
     // Used to save space on vertex buffer by removing duplicated vertices.
     vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+
+    // 3. Mesh Pipeline, but with loaded gLTF meshes
+    // testMeshes[0] = cube, testMeshes[1] = sphere, testMeshes[2] = Suzanne
+
+    // Add a proper orientation to the test mesh Suzanne
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = glm::translate(model, glm::vec3{ 0.0f,0.0f,-5.0f });
+    glm::mat4 projection = // camera projection
+        glm::perspective(glm::radians(70.f),
+            (float)_drawExtent.width/ (float)_drawExtent.height,
+            10000.f,
+            0.1f);
+
+    // Invert the Y direction on projection matrix so that we are more similar to OpenGL and gLTF axis
+    projection[1][1] *= -1;
+
+    push_constants.worldMatrix = projection * view * model;
+    push_constants.vertexBuffer = testMeshes[2]->meshBuffers.vertexBufferAddress;
+
+    vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+    vkCmdDrawIndexed(cmd, testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
 
     vkCmdEndRendering(cmd);
 }

@@ -9,6 +9,7 @@
 
 //bootstrap library
 #include "VkBootstrap.h"
+#include "vk_loader.h"
 
 // Inneficient at scale, but good for this example.
 struct DeletionQueue
@@ -96,6 +97,7 @@ class VulkanEngine
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
 	GPUMeshBuffers rectangle;
+	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	// Immediate submit structures
 	VkFence _immFence;
