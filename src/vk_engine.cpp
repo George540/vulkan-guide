@@ -187,7 +187,7 @@ void VulkanEngine::init_background_pipelines()
 
     // default colors
     gradient.data.data1 = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f); // red
-    gradient.data.data2 = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f); // blue
+    gradient.data.data2 = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f); // blue
 
     VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
@@ -295,7 +295,7 @@ void VulkanEngine::init_mesh_pipeline()
     }
 
     VkShaderModule triangleVertexShader;
-    if (!vkutil::load_shader_module("../../shaders/colored_triangle.vert.spv", _device, &triangleVertexShader))
+    if (!vkutil::load_shader_module("../../shaders/colored_triangle_mesh.vert.spv", _device, &triangleVertexShader))
     {
         fmt::print("Error when building the triangle vertex shader module");
     }
@@ -852,21 +852,19 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     // testMeshes[0] = cube, testMeshes[1] = sphere, testMeshes[2] = Suzanne
 
     // Add a proper orientation to the test mesh Suzanne
-    glm::mat4 model = glm::mat4(1.0f);
-    glm::mat4 view = glm::translate(model, glm::vec3{ 0.0f,0.0f,-5.0f });
-    glm::mat4 projection = // camera projection
-        glm::perspective(glm::radians(70.f),
-            (float)_drawExtent.width/ (float)_drawExtent.height,
-            10000.f,
-            0.1f);
+    glm::mat4 view = glm::translate(glm::vec3{ 0,0,-5 });
+	// camera projection
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)_drawExtent.width / (float)_drawExtent.height, 10000.f, 0.1f);
+
 
     // Invert the Y direction on projection matrix so that we are more similar to OpenGL and gLTF axis
     projection[1][1] *= -1;
 
-    push_constants.worldMatrix = projection * view * model;
+    push_constants.worldMatrix = projection * view;
     push_constants.vertexBuffer = testMeshes[2]->meshBuffers.vertexBufferAddress;
-
     vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+    vkCmdBindIndexBuffer(cmd, testMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdDrawIndexed(cmd, testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
 
     vkCmdEndRendering(cmd);
@@ -958,7 +956,7 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
     VkBufferCreateInfo bufferInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     bufferInfo.pNext = nullptr;
     bufferInfo.size = allocSize;
-    bufferInfo.usage = memoryUsage;
+    bufferInfo.usage = usage;
 
     VmaAllocationCreateInfo vmaAllocationInfo = {};
     vmaAllocationInfo.usage = memoryUsage;

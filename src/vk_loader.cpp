@@ -142,12 +142,13 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(VulkanEngi
                     vtx.color = glm::vec4(vtx.normal, 1.f);
                 }
             }
-            // 3. Upload mesh into a mesh buffere
-            newMesh.meshBuffers = engine->upload_mesh(indices, vertices);
-
-            // 4. Store newly read mesh data into temporary storage
-            meshes.emplace_back(std::make_shared<MeshAsset>(std::move(newMesh)));
         }
+
+        // 3. Upload mesh into a mesh buffer
+        newMesh.meshBuffers = engine->upload_mesh(indices, vertices);
+
+        // 4. Store newly read mesh data into temporary storage
+        meshes.emplace_back(std::make_shared<MeshAsset>(std::move(newMesh)));
     }
 
     return meshes;
