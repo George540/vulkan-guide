@@ -79,6 +79,7 @@ class VulkanEngine
 	std::vector<VkImageView> _swapchainImageViews;
 	VkExtent2D _swapchainExtent;
 	VkExtent2D _drawExtent;
+	float renderScale = 1.f;
 
 	// Pipelines
 	VkPipeline _gradientPipeline;
@@ -130,13 +131,15 @@ class VulkanEngine
 
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
+	void resize_swapchain();
 
 public:
 
 	bool _isInitialized{ false };
 	int _frameNumber {0};
 	bool stop_rendering{ false };
-	VkExtent2D _windowExtent{ 1700 , 900 };
+	bool resize_requested{ false };
+	VkExtent2D _windowExtent{ 2500 , 1000 };
 
 	struct SDL_Window* _window{ nullptr };
 
