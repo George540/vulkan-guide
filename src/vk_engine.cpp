@@ -133,7 +133,7 @@ void VulkanEngine::init_pipelines()
     init_background_pipelines();
 
     // GRAPHICS PIPELINES
-    init_triangle_pipeline();
+    //init_triangle_pipeline();
     init_mesh_pipeline();
 }
 
@@ -266,7 +266,7 @@ void VulkanEngine::init_triangle_pipeline()
 
     //connect the image format we will draw into, from draw image
     pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
-    pipelineBuilder.set_depth_format(VK_FORMAT_UNDEFINED);
+    pipelineBuilder.set_depth_format(_depthImage.imageFormat);
 
     // Finally build the pipeline
     _trianglePipeline = pipelineBuilder.build_pipeline(_device);
@@ -331,8 +331,9 @@ void VulkanEngine::init_mesh_pipeline()
     pipelineBuilder.set_multisampling_none();
     // No blending
     pipelineBuilder.disable_blending();
-    // No depth testing
-    pipelineBuilder.disable_depth_test();
+    // Yes depth testing
+    //pipelineBuilder.disable_depth_test();
+    pipelineBuilder.enable_depth_test(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
     //connect the image format we will draw into, from draw image
     pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
@@ -582,11 +583,30 @@ void VulkanEngine::init_swapchain()
 
     VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
 
+    // Depth Testing
+    _depthImage.imageFormat = VK_FORMAT_D32_SFLOAT_S8_UINT;
+    _depthImage.imageExtent = _drawImage.imageExtent;
+    VkImageUsageFlags depthImageUsages{};
+    depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+    VkImageCreateInfo depth_image_info = vkinit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent);
+
+    // Allocate and create depth image
+    vmaCreateImage(_allocator, &depth_image_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
+
+    // Build an image-view for the draw image to use for rendering
+    VkImageViewCreateInfo depth_view_info = vkinit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    VK_CHECK(vkCreateImageView(_device, &depth_view_info, nullptr, &_depthImage.imageView));
+
     //add to deletion queues
     _mainDeletionQueue.push_function([=]()
     {
         vkDestroyImageView(_device, _drawImage.imageView, nullptr);
         vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
+
+        vkDestroyImageView(_device, _depthImage.imageView, nullptr);
+        vmaDestroyImage(_allocator, _depthImage.image, _drawImage.allocation);
     });
 }
 void VulkanEngine::init_commands()
@@ -664,6 +684,12 @@ void VulkanEngine::cleanup()
             _frames[i]._deletionQueue.flush();
         }
 
+        for (auto& mesh : testMeshes)
+        {
+            destroy_buffer(mesh->meshBuffers.indexBuffer);
+            destroy_buffer(mesh->meshBuffers.vertexBuffer);
+        }
+
         //flush the global deletion queue
         _mainDeletionQueue.flush();
 
@@ -717,6 +743,7 @@ void VulkanEngine::draw()
     // It is possible to draw into general layout with graphics pipeline, but its lower performance
     // and validation layers will complain.
     vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     draw_geometry(cmd);
 
@@ -801,12 +828,13 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 {
     // Begin a render pass connected to our draw image
-    VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);\
+    VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
     VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, nullptr);
     vkCmdBeginRendering(cmd, &renderInfo);
 
-    // 1. Triangle Pipeline
+    /*// 1. Triangle Pipeline
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
     // Set dynamic viewport and scissor
@@ -831,10 +859,31 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     // Launch a draw command to draw 3 vertices (similar to OpenGL DrawElements())
-    vkCmdDraw(cmd, 3, 1, 0, 0);
+    vkCmdDraw(cmd, 3, 1, 0, 0);*/
 
     // 2. Mesh Pipeline
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
+
+    // Set dynamic viewport and scissor
+    // This is required before we left them undefined when creating
+    // the pipeline as we were using dynamic pipeline state.
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = _drawExtent.width;
+    viewport.height = _drawExtent.height;
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent.width = _drawExtent.width;
+    scissor.extent.height = _drawExtent.height;
+
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     GPUDrawPushConstants push_constants;
     push_constants.worldMatrix = glm::mat4 {1.f };
@@ -842,11 +891,11 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
     // We have a buffer on this pipeline, so let's use it
-    vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+   // vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     // Same as vkCmdDraw, but use bound index buffer to draw meshes.
     // Used to save space on vertex buffer by removing duplicated vertices.
-    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+    //vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
 
     // 3. Mesh Pipeline, but with loaded gLTF meshes
     // testMeshes[0] = cube, testMeshes[1] = sphere, testMeshes[2] = Suzanne

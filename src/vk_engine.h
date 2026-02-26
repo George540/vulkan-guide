@@ -78,6 +78,7 @@ class VulkanEngine
 	std::vector<VkImage> _swapchainImages;
 	std::vector<VkImageView> _swapchainImageViews;
 	VkExtent2D _swapchainExtent;
+	VkExtent2D _drawExtent;
 
 	// Pipelines
 	VkPipeline _gradientPipeline;
@@ -106,7 +107,7 @@ class VulkanEngine
 
 	//draw resources
 	AllocatedImage _drawImage;
-	VkExtent2D _drawExtent;
+	AllocatedImage _depthImage;
 
 	// Push Constants
 	std::vector<ComputeEffect> backgroundEffects;
