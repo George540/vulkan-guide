@@ -219,3 +219,22 @@ void PipelineBuilder::disable_depth_test()
     _depthStencil.minDepthBounds = 0.f;
     _depthStencil.maxDepthBounds = 1.f;
 }
+
+void PipelineBuilder::enable_blending_additive()
+{
+    // Formula for blending options in Vulkan:
+    // outColor = srcColor * srcColorBlendFactor <op> dstColor * dstColorBlendFactor;
+    
+    _colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    _colorBlendAttachment.blendEnable = VK_TRUE;
+    _colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    _colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    _colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+    _colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    _colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    _colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // most basic and guaranteed to work
+    // Color blending formula result: outColor = srcColor.rgb * srcColor.a + dstColor.rgb * 1.0
+    // Alpha blending formula result: outColor = srcColor.rgb * srcColor.a + dstColor.rgb * (1.0 - srcColor.a)
+    // Source (srcColor and blend factor): color we are processing on our pipeline
+    // Destination (dstColor and blend factor): current value of the image we are rendering into
+}
