@@ -133,7 +133,6 @@ void VulkanEngine::init_pipelines()
     init_background_pipelines();
 
     // GRAPHICS PIPELINES
-    //init_triangle_pipeline();
     init_mesh_pipeline();
 }
 
@@ -215,70 +214,6 @@ void VulkanEngine::init_background_pipelines()
         vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
         vkDestroyPipeline(_device, sky.pipeline, nullptr);
         vkDestroyPipeline(_device, gradient.pipeline, nullptr);
-    });
-}
-
-void VulkanEngine::init_triangle_pipeline()
-{
-    VkShaderModule triangleFragShader;
-    if (!vkutil::load_shader_module("../../shaders/colored_triangle.frag.spv", _device, &triangleFragShader))
-    {
-        fmt::print("Error when building the triangle fragment shader module");
-    }
-    else
-    {
-        fmt::print("Triangle fragment shader successfully loaded");
-    }
-
-    VkShaderModule triangleVertexShader;
-    if (!vkutil::load_shader_module("../../shaders/colored_triangle.vert.spv", _device, &triangleVertexShader))
-    {
-        fmt::print("Error when building the triangle vertex shader module");
-    }
-    else
-    {
-        fmt::print("Triangle vertex shader successfully loaded");
-    }
-	
-    // Build the pipeline layout that controls the inputs/outputs of the shader
-    // We are not using descriptor sets or other systems yet, so no need to use anything other than empty default
-    VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
-    VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
-
-    PipelineBuilder pipelineBuilder;
-
-    // Use the triangle layout we created
-    pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
-    // Connecting the vertex and pixel shaders to the pipeline
-    pipelineBuilder.set_shaders(triangleVertexShader, triangleFragShader);
-    // It will draw triangles
-    pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    // Filled triangles
-    pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
-    // No backface culling
-    pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-    // No multisampling
-    pipelineBuilder.set_multisampling_none();
-    // No blending
-    pipelineBuilder.disable_blending();
-    // No depth testing
-    pipelineBuilder.disable_depth_test();
-
-    //connect the image format we will draw into, from draw image
-    pipelineBuilder.set_color_attachment_format(_drawImage.imageFormat);
-    pipelineBuilder.set_depth_format(_depthImage.imageFormat);
-
-    // Finally build the pipeline
-    _trianglePipeline = pipelineBuilder.build_pipeline(_device);
-
-    // Clean structures
-    vkDestroyShaderModule(_device, triangleFragShader, nullptr);
-    vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
-
-    _mainDeletionQueue.push_function([&]()
-    {
-        vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
-        vkDestroyPipeline(_device, _trianglePipeline, nullptr);
     });
 }
 
@@ -422,36 +357,6 @@ void VulkanEngine::init_imgui()
 
 void VulkanEngine::init_default_data()
 {
-    std::array<Vertex, 4> rect_vertices;
-
-    rect_vertices[0].position = {0.5,-0.5, 0};
-    rect_vertices[1].position = {0.5,0.5, 0};
-    rect_vertices[2].position = {-0.5,-0.5, 0};
-    rect_vertices[3].position = {-0.5,0.5, 0};
-
-    rect_vertices[0].color = {0,0, 0,1}; // black
-    rect_vertices[1].color = { 1,1,1 ,1}; // white
-    rect_vertices[2].color = { 1,0, 0,1 }; // red
-    rect_vertices[3].color = { 0,1, 0,1 }; // green
-
-    std::array<uint32_t, 6> rect_indices;
-    rect_indices[0] = 0;
-    rect_indices[1] = 1;
-    rect_indices[2] = 2;
-
-    rect_indices[3] = 2;
-    rect_indices[4] = 1;
-    rect_indices[5] = 3;
-
-    rectangle = upload_mesh(rect_indices, rect_vertices);
-
-    // Delete the rectangle data on engine shutdown
-    _mainDeletionQueue.push_function([&]()
-    {
-        destroy_buffer(rectangle.indexBuffer);
-        destroy_buffer(rectangle.vertexBuffer);
-    });
-
     testMeshes = loadGltfMeshes(this,"..\\..\\assets\\basicmesh.glb").value();
 }
 
@@ -834,33 +739,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, nullptr);
     vkCmdBeginRendering(cmd, &renderInfo);
 
-    /*// 1. Triangle Pipeline
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
-
-    // Set dynamic viewport and scissor
-    // This is required before we left them undefined when creating
-    // the pipeline as we were using dynamic pipeline state.
-    VkViewport viewport = {};
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.width = _drawExtent.width;
-    viewport.height = _drawExtent.height;
-    viewport.minDepth = 0.f;
-    viewport.maxDepth = 1.f;
-
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor = {};
-    scissor.offset.x = 0;
-    scissor.offset.y = 0;
-    scissor.extent.width = _drawExtent.width;
-    scissor.extent.height = _drawExtent.height;
-
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
-    // Launch a draw command to draw 3 vertices (similar to OpenGL DrawElements())
-    vkCmdDraw(cmd, 3, 1, 0, 0);*/
-
     // 2. Mesh Pipeline
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
@@ -887,17 +765,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
     GPUDrawPushConstants push_constants;
     push_constants.worldMatrix = glm::mat4 {1.f };
-    push_constants.vertexBuffer = rectangle.vertexBufferAddress;
 
     vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
-    // We have a buffer on this pipeline, so let's use it
-   // vkCmdBindIndexBuffer(cmd, rectangle.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-    // Same as vkCmdDraw, but use bound index buffer to draw meshes.
-    // Used to save space on vertex buffer by removing duplicated vertices.
-    //vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
-
-    // 3. Mesh Pipeline, but with loaded gLTF meshes
+    // Mesh Pipeline, but with loaded gLTF meshes
     // testMeshes[0] = cube, testMeshes[1] = sphere, testMeshes[2] = Suzanne
 
     // Add a proper orientation to the test mesh Suzanne
@@ -913,7 +784,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
     push_constants.vertexBuffer = testMeshes[2]->meshBuffers.vertexBufferAddress;
     vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 
+    // We have a buffer on this pipeline, so let's use it
     vkCmdBindIndexBuffer(cmd, testMeshes[2]->meshBuffers.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+    // Same as vkCmdDraw, but use bound index buffer to draw meshes.
+    // Used to save space on vertex buffer by removing duplicated vertices.
     vkCmdDrawIndexed(cmd, testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
 
     vkCmdEndRendering(cmd);

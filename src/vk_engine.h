@@ -97,7 +97,6 @@ class VulkanEngine
 	// Graphics Mesh Pipeline
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
-	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	// Immediate submit structures
