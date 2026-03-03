@@ -619,7 +619,6 @@ void VulkanEngine::draw()
     VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, WAIT_FENCE_TIMEOUT));
 
     get_current_frame()._deletionQueue.flush(); // flush after fencing to ensure frame is properly set for reset
-    VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._renderFence));
 
     // Request image from the swapchain
     uint32_t swapchainImageIndex;
@@ -627,20 +626,27 @@ void VulkanEngine::draw()
     if (e == VK_ERROR_OUT_OF_DATE_KHR)
     {
         resize_requested = true;       
-        return ;
+        return;
     }
+    if (e == VK_SUBOPTIMAL_KHR)
+    {
+        resize_requested = true;
+        return;
+    }
+
+    _drawExtent.height = std::min(_swapchainExtent.height, _drawImage.imageExtent.height) * renderScale;
+    _drawExtent.width= std::min(_swapchainExtent.width, _drawImage.imageExtent.width) * renderScale;
+
+    VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._renderFence));
+
+    // now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
+    VK_CHECK(vkResetCommandBuffer(get_current_frame()._mainCommandBuffer, 0));
 
     //naming it cmd for shorter writing
     VkCommandBuffer cmd = get_current_frame()._mainCommandBuffer;
 
-    // now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
-    VK_CHECK(vkResetCommandBuffer(cmd, 0));
-
     //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
     VkCommandBufferBeginInfo cmdBeginInfo = vkinit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-    _drawExtent.height = std::min(_swapchainExtent.height, _drawImage.imageExtent.height) * renderScale;
-    _drawExtent.width= std::min(_swapchainExtent.width, _drawImage.imageExtent.width) * renderScale;
 
     VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
@@ -670,6 +676,9 @@ void VulkanEngine::draw()
 
     //draw imgui into the swapchain image
     draw_imgui(cmd,  _swapchainImageViews[swapchainImageIndex]);
+
+    // set swapchain image layout to Present so we can draw it
+    //vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     //finalize the command buffer (we can no longer add commands, but it can now be executed)
     VK_CHECK(vkEndCommandBuffer(cmd));
@@ -705,14 +714,13 @@ void VulkanEngine::draw()
     presentInfo.pImageIndices = &swapchainImageIndex;
 
     VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo);
-    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR)
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
     {
         resize_requested = true;
     }
 
     //increase the number of frames drawn
     _frameNumber++;
-
 }
 
 void VulkanEngine::draw_background(VkCommandBuffer cmd)
@@ -972,17 +980,6 @@ void VulkanEngine::destroy_swapchain()
     for (int i = 0; i < _swapchainImageViews.size(); i++)
     {
         vkDestroyImageView(_device, _swapchainImageViews[i], nullptr);
-    }
-
-    for (int i = 0; i < FRAME_OVERLAP; i++) {
-
-        //already written from before
-        vkDestroyCommandPool(_device, _frames[i]._commandPool, nullptr);
-
-        //destroy sync objects
-        vkDestroyFence(_device, _frames[i]._renderFence, nullptr);
-        vkDestroySemaphore(_device, _frames[i]._renderSemaphore, nullptr);
-        vkDestroySemaphore(_device, _frames[i]._swapchainSemaphore, nullptr);
     }
 }
 
