@@ -40,6 +40,7 @@ struct FrameData
 	VkSemaphore _swapchainSemaphore, _renderSemaphore;
 	VkFence _renderFence;
 	DeletionQueue _deletionQueue;
+	DescriptorAllocatorGrowable _frameDescriptors;
 };
 
 struct ComputePushConstants
@@ -106,8 +107,12 @@ class VulkanEngine
 	VkCommandPool _immCommandPool;
 
 	//draw resources
+	GPUSceneData sceneData;
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
+
+	// Material Stuff
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
 	// Push Constants
 	std::vector<ComputeEffect> backgroundEffects;
