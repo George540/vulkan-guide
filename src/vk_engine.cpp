@@ -512,7 +512,7 @@ void VulkanEngine::init_swapchain()
         vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
 
         vkDestroyImageView(_device, _depthImage.imageView, nullptr);
-        vmaDestroyImage(_allocator, _depthImage.image, _drawImage.allocation);
+        vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
     });
 }
 void VulkanEngine::init_commands()
