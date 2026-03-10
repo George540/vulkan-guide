@@ -54,8 +54,8 @@ void PipelineBuilder::clear()
 {
     // Set sType for every structure and leave everything else 0 using C++20 initializers.
     // Parameters that don't get written within brackets get defaulted to 0.
-    _inputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-    _rasterizer = { .sType =VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    _inputAssembly = { .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    _rasterizer = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     _colorBlendAttachment = {};
     _multisampling = { .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
     _pipelineLayout = {};
