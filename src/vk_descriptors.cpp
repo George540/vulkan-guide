@@ -199,22 +199,11 @@ void DescriptorAllocatorGrowable::destroy_pools(VkDevice device)
 
 VkDescriptorSet DescriptorAllocatorGrowable::allocate(VkDevice device, VkDescriptorSetLayout layout, void* pNext)
 {
-    /*VkDescriptorSetAllocateInfo allocInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-    allocInfo.pNext = nullptr;
-    allocInfo.descriptorPool = pool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &layout;
-
-    VkDescriptorSet ds;
-    VK_CHECK(vkAllocateDescriptorSets(device, &allocInfo, &ds));
-
-    return ds;*/
-
-    // Get or create a pool to allocate from
+    //get or create a pool to allocate from
     VkDescriptorPool poolToUse = get_pool(device);
 
     VkDescriptorSetAllocateInfo allocInfo = { .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-    allocInfo.pNext = nullptr;
+    allocInfo.pNext = pNext;
     allocInfo.descriptorPool = poolToUse;
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts = &layout;
