@@ -61,11 +61,44 @@ struct ComputeEffect
 	ComputePushConstants data;
 };
 
+struct GLTFMetallic_Roughness
+{
+	MaterialPipeline opaquePipeline;
+	MaterialPipeline transparentPipeline;
+
+	VkDescriptorSetLayout materialLayout;
+
+	struct MaterialConstants
+	{
+		glm::vec4 colorFactors;
+		glm::vec4 metal_rough_factors;
+		glm::vec4 extra[14]; // padding, we need it anyway for uniform buffers
+	};
+
+	struct MaterialResources
+	{
+		AllocatedImage colorImage;
+		VkSampler colorSampler;
+		AllocatedImage metalRoughImage;
+		VkSampler metalRoughSampler;
+		VkBuffer dataBuffer;
+		uint32_t dataBufferOffset;
+	};
+
+	DescriptorWriter writer;
+
+	void build_pipelines(VulkanEngine* engine);
+	void clear_resources(VkDevice device);
+
+	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+};
+
 constexpr unsigned int FRAME_OVERLAP = 2; // for double-buffering
 constexpr unsigned int WAIT_FENCE_TIMEOUT = 1000000000; // for double-buffering
 
 class VulkanEngine
 {
+public:
 	// Vulkan Initializers
 	VkInstance _instance;// Vulkan library handle
 	VkDebugUtilsMessengerEXT _debug_messenger;// Vulkan debug output handle
@@ -121,13 +154,15 @@ class VulkanEngine
 
 	// Material Stuff
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	MaterialInstance defaultData;
+	GLTFMetallic_Roughness metalRoughMaterial;
 
 	// Push Constants
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{0};
 
 	// Descriptors
-	DescriptorAllocator globalDescriptorAllocator;
+	DescriptorAllocatorGrowable globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
@@ -146,8 +181,6 @@ class VulkanEngine
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
 	void resize_swapchain();
-
-public:
 
 	bool _isInitialized{ false };
 	int _frameNumber {0};
