@@ -12,7 +12,7 @@
 #include "VkBootstrap.h"
 #include "vk_loader.h"
 
-// Inneficient at scale, but good for this example.
+// Inefficient at scale, but good for this example.
 struct DeletionQueue
 {
 	std::deque<std::function<void()>> deletors;
@@ -158,7 +158,7 @@ public:
 	// Graphics Mesh Pipeline
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
-	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
+	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	// Immediate submit structures
 	VkFence _immFence;

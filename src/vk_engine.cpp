@@ -201,10 +201,18 @@ void VulkanEngine::init()
     _isInitialized = true;
 
     mainCamera.velocity = glm::vec3(0.0f);
-    mainCamera.position = glm::vec3(0.0f, 0.0f, 5.0f);
+    mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
 
     mainCamera.pitch = 0.0f;
     mainCamera.yaw = 0.0f;
+
+    // Scene loading
+    std::string structurePath = { "..\\..\\assets\\structure.glb" };
+    auto structureFile = loadGltf(this,structurePath);
+
+    assert(structureFile.has_value());
+
+    loadedScenes["structure"] = *structureFile;
 }
 
 void VulkanEngine::init_descriptors()
@@ -587,24 +595,6 @@ void VulkanEngine::init_default_data()
     materialResources.dataBufferOffset = 0;
 
     defaultData = metalRoughMaterial.write_material(_device,MaterialPass::MainColor, materialResources, globalDescriptorAllocator);
-
-    testMeshes = loadGltfMeshes(this,"..\\..\\assets\\basicmesh.glb").value();
-
-    for (auto& m : testMeshes)
-    {
-        std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
-        newNode->mesh = m;
-
-        newNode->localTransform = glm::mat4{ 1.f };
-        newNode->worldTransform = glm::mat4{ 1.f };
-
-        for (auto& s : newNode->mesh->surfaces)
-        {
-            s.material = std::make_shared<GLTFMaterial>(defaultData);
-        }
-
-        loadedNodes[m->name] = std::move(newNode);
-    }
 }
 
 void VulkanEngine::init_vulkan()
@@ -819,6 +809,9 @@ void VulkanEngine::cleanup()
         // Make sure the gpu has stopped doing its things
         vkDeviceWaitIdle(_device);
 
+        // Clear loaded scenes (meshes, textures, materials, etc)
+        loadedScenes.clear();
+
         // Note by instructor: It’s not possible to individually destroy VkCommandBuffer,
         // destroying their parent pool will destroy all of the command buffers allocated from it.
         // VkQueue-s also can’t be destroyed, as, like with the VkPhysicalDevice, they aren’t really created objects,
@@ -834,12 +827,6 @@ void VulkanEngine::cleanup()
 
             //free per-frame structures and deletion queue
             _frames[i]._deletionQueue.flush();
-        }
-
-        for (auto& mesh : testMeshes)
-        {
-            destroy_buffer(mesh->meshBuffers.indexBuffer);
-            destroy_buffer(mesh->meshBuffers.vertexBuffer);
         }
 
         //flush the global deletion queue
@@ -1145,18 +1132,6 @@ void VulkanEngine::update_scene()
 {
     mainDrawContext.OpaqueSurfaces.clear();
 
-    loadedNodes["Suzanne"]->Draw(glm::mat4{1.f}, mainDrawContext);
-
-    for (int x = -3; x < 3; x++)
-    {
-        // Spawn cubes from left to right of the screen
-        glm::mat4 scale = glm::scale(glm::vec3{0.2f});
-        glm::mat4 translation = glm::translate(glm::vec3{x, 1.0f, 0.0f});
-
-        // Draw multiple cubes in different positions
-        loadedNodes["Cube"]->Draw(translation * scale, mainDrawContext);
-    }
-
     mainCamera.update();
     // Camera view and projection
     glm::mat4 view = mainCamera.getViewMatrix();
@@ -1176,6 +1151,9 @@ void VulkanEngine::update_scene()
     sceneData.ambientColor = glm::vec4(0.1f);
     sceneData.sunlightColor = glm::vec4(1.0f);
     sceneData.sunlightDirection = glm::vec4(0.0f, 1.0f, 0.5f, 1.0f);
+
+    // Loading static glTF scene
+    loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 }
 
 void VulkanEngine::run()
