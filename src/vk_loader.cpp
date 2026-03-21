@@ -58,7 +58,116 @@ void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
 void LoadedGLTF::clearAll()
 {
-    
+    VkDevice dv = creator->_device;
+
+    descriptorPool.destroy_pools(dv);
+    creator->destroy_buffer(materialDataBuffer);
+
+    for (auto& [k, v] : meshes)
+    {
+        creator->destroy_buffer(v->meshBuffers.indexBuffer);
+        creator->destroy_buffer(v->meshBuffers.vertexBuffer);
+    }
+
+    for (auto& [k, v] : images)
+    {
+        // Don't destroy the default images
+        if (v.image == creator->_errorCheckerboardImage.image)
+        {
+            continue;
+        }
+        creator->destroy_image(v);
+    }
+
+    for (auto& sampler : samplers)
+    {
+        vkDestroySampler(dv, sampler, nullptr);
+    }
+}
+
+std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
+{
+    AllocatedImage newImage {};
+
+    int width, height, nrChannels;
+
+    std::visit(
+        fastgltf::visitor {
+            [](auto& arg) {},
+            [&](fastgltf::sources::URI& filePath) {
+                assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
+                assert(filePath.uri.isLocalPath()); // We're only capable of loading
+                                                    // local files.
+
+                const std::string path(filePath.uri.path().begin(),
+                    filePath.uri.path().end()); // Thanks C++.
+                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+                if (data) {
+                    VkExtent3D imagesize;
+                    imagesize.width = width;
+                    imagesize.height = height;
+                    imagesize.depth = 1;
+
+                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+
+                    stbi_image_free(data);
+                }
+            },
+            [&](fastgltf::sources::Vector& vector) {
+                unsigned char* data = stbi_load_from_memory(vector.bytes.data(), static_cast<int>(vector.bytes.size()),
+                    &width, &height, &nrChannels, 4);
+                if (data) {
+                    VkExtent3D imagesize;
+                    imagesize.width = width;
+                    imagesize.height = height;
+                    imagesize.depth = 1;
+
+                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+
+                    stbi_image_free(data);
+                }
+            },
+            [&](fastgltf::sources::BufferView& view)
+            {
+                auto& bufferView = asset.bufferViews[view.bufferViewIndex];
+                auto& buffer = asset.buffers[bufferView.bufferIndex];
+
+                std::visit(fastgltf::visitor{ // We only care about VectorWithMime here, because we
+                                               // specify LoadExternalBuffers, meaning all buffers
+                                               // are already loaded into a vector.
+                               [](auto& arg) {},
+                               [&](fastgltf::sources::Vector& vector)
+                                   {
+                                   unsigned char* data = stbi_load_from_memory(vector.bytes.data() + bufferView.byteOffset,
+                                       static_cast<int>(bufferView.byteLength),
+                                       &width, &height, &nrChannels, 4);
+                                   if (data)
+                                   {
+                                       VkExtent3D imagesize;
+                                       imagesize.width = width;
+                                       imagesize.height = height;
+                                       imagesize.depth = 1;
+
+                                       newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                                           VK_IMAGE_USAGE_SAMPLED_BIT,false);
+
+                                       stbi_image_free(data);
+                                   }
+                               } },
+                    buffer.data);
+            },
+        },
+        image.data);
+
+    // If any of the attempts to load the data failed, we haven't written the image so handle is null
+    if (newImage.image == VK_NULL_HANDLE)
+    {
+        return {};
+    }
+    else
+    {
+        return newImage;
+    }
 }
 
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath)
@@ -153,7 +262,19 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
     // 4. Load all textures from glTF file
     for (fastgltf::Image& image : gltf.images)
     {
-        images.push_back(engine->_errorCheckerboardImage); // temporary until we get textures and materials in
+        std::optional<AllocatedImage> img = load_image(engine, gltf, image);
+
+        if (img.has_value())
+        {
+            images.push_back(*img);
+            file.images[image.name.c_str()] = *img;
+        }
+        else
+        {
+            // We failed to load, so lets give the slot a default checkerboard texture to not completely break loading
+            images.push_back(engine->_errorCheckerboardImage);
+            std::cout << "gltf failed to load texture " << image.name << std::endl;
+        }
     }
 
     // Create buffer to hold the material data.
