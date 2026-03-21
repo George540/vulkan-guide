@@ -93,6 +93,31 @@ struct GLTFMetallic_Roughness
 	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
+struct RenderObject
+{
+	uint32_t indexCount;
+	uint32_t firstIndex;
+	VkBuffer indexBuffer;
+
+	MaterialInstance* material;
+
+	glm::mat4 transform;
+	VkDeviceAddress vertexBufferAddress;
+};
+
+
+struct DrawContext
+{
+	std::vector<RenderObject> OpaqueSurfaces;
+};
+
+struct MeshNode : public Node
+{
+	std::shared_ptr<MeshAsset> mesh;
+
+	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+};
+
 constexpr unsigned int FRAME_OVERLAP = 2; // for double-buffering
 constexpr unsigned int WAIT_FENCE_TIMEOUT = 1000000000; // for double-buffering
 
@@ -148,9 +173,13 @@ public:
 	VkSampler _defaultSamplerNearest;
 
 	// Draw resources
+	DrawContext mainDrawContext;
 	GPUSceneData sceneData;
+
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
+
+	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
 
 	// Material Stuff
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
@@ -219,6 +248,8 @@ public:
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
+
+	void update_scene();
 
 	//run main loop
 	void run();

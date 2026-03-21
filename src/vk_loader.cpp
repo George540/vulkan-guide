@@ -134,7 +134,7 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(VulkanEngi
             // Display the vertex normals
             // Compile-time flag that to override vertex colors and normals.
             // Used best for debugging.
-            constexpr bool OverrideColors = true;
+            constexpr bool OverrideColors = false;
             if (OverrideColors)
             {
                 for (Vertex& vtx : vertices)

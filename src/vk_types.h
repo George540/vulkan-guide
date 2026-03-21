@@ -99,3 +99,41 @@ struct MaterialInstance
     VkDescriptorSet materialSet;
     MaterialPass passType;
 };
+
+struct DrawContext;
+
+// base class for a renderable dynamic object
+class IRenderable
+{
+    virtual void Draw(const glm::mat4& topMatrix, DrawContext& context) = 0;
+};
+
+// Implementation of a drawable scene node.
+// The scene node can hold children and will also keep a transform to propagate to them.
+struct Node : public IRenderable
+{
+    // parent pointer must be a weak pointer to avoid circular dependencies
+    std::weak_ptr<Node> parent;
+    std::vector<std::shared_ptr<Node>> children;
+
+    glm::mat4 localTransform;
+    glm::mat4 worldTransform;
+
+    void refreshTransform(const glm::mat4& parentMatrix)
+    {
+        worldTransform = parentMatrix * localTransform;
+        for (auto child : children)
+        {
+            child->refreshTransform(worldTransform);
+        }
+    }
+
+    virtual void Draw(const glm::mat4& topMatrix, DrawContext& context) override
+    {
+        // Draw Children
+        for (auto child : children)
+        {
+            child->Draw(topMatrix, context);
+        }
+    }
+};

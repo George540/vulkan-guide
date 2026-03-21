@@ -7,10 +7,16 @@
 // forward declaration
 class VulkanEngine;
 
+struct GLTFMaterial
+{
+    MaterialInstance data;
+};
+
 struct GeoSurface // surface info for a draw call
 {
     uint32_t startIndex;
     uint32_t count;
+    std::shared_ptr<GLTFMaterial> material;
 };
 
 struct MeshAsset
