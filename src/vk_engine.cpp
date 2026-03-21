@@ -199,6 +199,12 @@ void VulkanEngine::init()
 
     // everything went fine
     _isInitialized = true;
+
+    mainCamera.velocity = glm::vec3(0.0f);
+    mainCamera.position = glm::vec3(0.0f, 0.0f, 5.0f);
+
+    mainCamera.pitch = 0.0f;
+    mainCamera.yaw = 0.0f;
 }
 
 void VulkanEngine::init_descriptors()
@@ -1151,16 +1157,20 @@ void VulkanEngine::update_scene()
         loadedNodes["Cube"]->Draw(translation * scale, mainDrawContext);
     }
 
-    // Camera view and projection (hard coded for now)
-    sceneData.view = glm::translate(glm::vec3{ 0.0f, 0.0f, -5.0f });
-    sceneData.proj = glm::perspective(glm::radians(70.0f),
-        (float)_windowExtent.width / (float)_windowExtent.height,
-        1000.0f,
-        0.1f);
+    mainCamera.update();
+    // Camera view and projection
+    glm::mat4 view = mainCamera.getViewMatrix();
+    glm::mat4 projection = glm::perspective(glm::radians(70.0f),
+                        (float)_windowExtent.width / (float)_windowExtent.height,
+                        1000.0f,
+                        0.1f);
 
     // Invert the Y direction on projection Matrix so that we are more similar to OpenGL and GLTF axis
-    sceneData.proj[1][1] *= -1.0f;
-    sceneData.viewproj = sceneData.proj * sceneData.view;
+    projection[1][1] *= -1;
+    
+    sceneData.view = view;
+    sceneData.proj = projection;
+    sceneData.viewproj = projection * view;
 
     // Some default lighting parameters
     sceneData.ambientColor = glm::vec4(0.1f);
@@ -1192,6 +1202,7 @@ void VulkanEngine::run()
                 }
             }
 
+            mainCamera.processSDLEvent(e);
             //send SDL event to imgui for handling
             ImGui_ImplSDL2_ProcessEvent(&e);
         }

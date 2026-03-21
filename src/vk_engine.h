@@ -8,6 +8,7 @@
 #include "vk_descriptors.h"
 
 //bootstrap library
+#include "camera.h"
 #include "VkBootstrap.h"
 #include "vk_loader.h"
 
@@ -175,6 +176,8 @@ public:
 	// Draw resources
 	DrawContext mainDrawContext;
 	GPUSceneData sceneData;
+
+	Camera mainCamera;
 
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
